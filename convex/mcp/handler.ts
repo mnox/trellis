@@ -42,6 +42,7 @@ const TOOL_ACTIONS = {
   ingest_solution: internal.mcp.actions.ingestSolution,
   ingest_correction: internal.mcp.actions.ingestCorrection,
   ingest_negative: internal.mcp.actions.ingestNegative,
+  report_taxonomy_gap: internal.mcp.actions.reportTaxonomyGap,
 } as const;
 
 type ToolName = keyof typeof TOOL_ACTIONS;

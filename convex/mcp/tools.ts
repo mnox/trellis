@@ -329,6 +329,117 @@ approach" space for a given intent.`,
       openWorldHint: false,
     },
   },
+
+  {
+    name: "report_taxonomy_gap",
+    description: `Report a case where the current taxonomy was insufficient to express what you observed.
+
+Call this when you encounter code that you cannot adequately label using the existing taxonomy
+paths or edge types — not when the labeling is difficult, but when the taxonomy itself lacks
+the vocabulary to express a meaningful architectural distinction.
+
+**When to call this:**
+- You cannot find any existing path that reasonably fits the pattern (missing_node or missing_domain)
+- A path exists but is so broad it collapses meaningfully different patterns together (path_too_coarse)
+- Multiple paths apply equally and there is no principled way to choose between them (path_ambiguous)
+- Two co-occurring paths have a clear architectural relationship but no existing edge type captures it (missing_edge_type)
+
+**When NOT to call this:**
+- The labeling is merely uncertain — use ingest_solution with a low confidence score instead
+- A novel path in L1|L2|L3 format would work — emit it in ingest_solution (novel paths are accepted)
+- The code is bad/wrong — use ingest_negative instead
+
+**Relationship to ingest_solution:**
+You may call both. If you ingested the code with approximate paths as the best available fit,
+pass that solution's ULID as solution_id. If no existing path was a reasonable fit at all and
+you chose not to ingest, omit solution_id.
+
+**The description field is the most important field.**
+Write in your own words: what architectural concept or pattern did you observe, and what
+specifically made the taxonomy fail to express it? Be specific about the gap — not just
+"there's no path for this" but "the pattern I observed has these properties [X, Y, Z] and
+the closest existing path data|read|realtime loses [Y] and [Z] entirely."
+
+**Gap types:**
+  missing_node      — the L1 domain exists but no L2/L3 node fits the pattern
+  missing_domain    — the concern falls outside all 8 L1 domains (ui, routing, data, server, auth, state, styling, types)
+  missing_edge_type — two co-occurring paths have a clear relationship but no edge type captures it
+  path_too_coarse   — a path exists but is too broad to meaningfully distinguish different sub-patterns
+  path_ambiguous    — multiple paths apply equally; the taxonomy gives no basis for choosing
+
+**Proposals:**
+If you have a concrete suggestion, include it:
+  proposed_path       — a new node in L1|L2|L3 format (for missing_node)
+  proposed_domain     — a new L1 domain name (for missing_domain)
+  proposed_edge_type  — a new edge type name in snake_case (for missing_edge_type)
+
+Current schema version: ${SCHEMA_VERSION}`,
+    inputSchema: {
+      type: "object",
+      properties: {
+        solution_id: {
+          type: "string",
+          description:
+            "ULID of a related solution ingested with approximate paths. " +
+            "Omit if you chose not to ingest the solution due to the taxonomy gap.",
+        },
+        intent: {
+          type: "string",
+          minLength: 1,
+          description: "The original natural language input that prompted the code being labeled",
+        },
+        approximate_paths: {
+          type: "array",
+          items: taxonomyPathSchema,
+          description:
+            "The best-approximation paths that were assigned despite the gap. " +
+            "Empty array is valid when no existing path was a reasonable fit.",
+        },
+        description: {
+          type: "string",
+          minLength: 20,
+          description:
+            "What the taxonomy failed to express and why. " +
+            "Be specific: describe the pattern you observed and exactly what properties the taxonomy lost. " +
+            "This is the primary signal for taxonomy evolution.",
+        },
+        gap_type: {
+          type: "string",
+          enum: ["missing_node", "missing_domain", "missing_edge_type", "path_too_coarse", "path_ambiguous"],
+          description: "Structured classification of the gap",
+        },
+        proposed_path: {
+          type: "string",
+          pattern: "^[a-z0-9-]+\\|[a-z0-9-]+\\|[a-z0-9-]+$",
+          description: "Suggested new taxonomy path in L1|L2|L3 format (for missing_node gaps)",
+        },
+        proposed_domain: {
+          type: "string",
+          description: "Suggested new L1 domain name in lowercase (for missing_domain gaps)",
+        },
+        proposed_edge_type: {
+          type: "string",
+          description: "Suggested new edge type in snake_case (for missing_edge_type gaps)",
+        },
+        stack_context: {
+          ...stackContextSchema,
+          description: "The tech stack — relevant for determining if a gap is stack-specific vs. universal",
+        },
+        model: {
+          type: "string",
+          description: "The model ID that generated the code and identified this gap",
+        },
+      },
+      required: ["intent", "approximate_paths", "description", "gap_type", "stack_context", "model"],
+      additionalProperties: false,
+    },
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: false,
+    },
+  },
 ];
 
 export function getToolDefinition(name: string): ToolDefinition | undefined {

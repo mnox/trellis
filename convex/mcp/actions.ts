@@ -121,6 +121,54 @@ export const ingestCorrection = internalAction({
   },
 });
 
+// ─── report_taxonomy_gap ─────────────────────────────────────────────────────
+
+export const reportTaxonomyGap = internalAction({
+  args: {
+    solution_id: v.optional(v.string()),
+    intent: v.string(),
+    approximate_paths: v.array(v.string()),
+    description: v.string(),
+    gap_type: v.string(),
+    proposed_path: v.optional(v.string()),
+    proposed_domain: v.optional(v.string()),
+    proposed_edge_type: v.optional(v.string()),
+    stack_context: stackContextValidator,
+    model: v.string(),
+  },
+  returns: v.string(),
+  handler: async (ctx, args): Promise<string> => {
+    const { ulid } = await ctx.runMutation(internal.taxonomy_gaps.insert, {
+      solutionId: args.solution_id,
+      intent: args.intent,
+      approximatePaths: JSON.stringify(args.approximate_paths),
+      description: args.description,
+      gapType: args.gap_type,
+      proposedPath: args.proposed_path,
+      proposedDomain: args.proposed_domain,
+      proposedEdgeType: args.proposed_edge_type,
+      stackContext: JSON.stringify(args.stack_context),
+      model: args.model,
+      schemaVersion: SCHEMA_VERSION,
+    });
+
+    const proposalLines: string[] = [];
+    if (args.proposed_path) proposalLines.push(`Proposed path: ${args.proposed_path}`);
+    if (args.proposed_domain) proposalLines.push(`Proposed domain: ${args.proposed_domain}`);
+    if (args.proposed_edge_type) proposalLines.push(`Proposed edge type: ${args.proposed_edge_type}`);
+
+    return [
+      `Taxonomy gap recorded: ${ulid}`,
+      `Gap type: ${args.gap_type}`,
+      `Approximate paths: ${args.approximate_paths.length > 0 ? args.approximate_paths.join(", ") : "(none)"}`,
+      args.solution_id ? `Linked solution: ${args.solution_id}` : "No linked solution",
+      `Stack: ${args.stack_context.framework} [${args.stack_context.libraries.join(", ")}]`,
+      `Model: ${args.model} | Schema: v${SCHEMA_VERSION}`,
+      ...proposalLines,
+    ].join("\n");
+  },
+});
+
 // ─── ingest_negative ─────────────────────────────────────────────────────────
 
 export const ingestNegative = internalAction({

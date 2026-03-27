@@ -133,6 +133,79 @@ export default defineSchema({
   // Reward signal: negatives → edge validity
   // A path combination that consistently produces failures = invalid edge.
 
+  // ─── Taxonomy Gaps ──────────────────────────────────────────────────────────
+  // Signals from the labeling agent that the taxonomy was insufficient.
+  // Captured when the agent cannot adequately express the architectural pattern
+  // it observed using the current taxonomy paths or edge types.
+  //
+  // This table is the primary input to taxonomy evolution.
+  // An inference agent operates over these records to:
+  //   1. Identify missing nodes (recurring patterns with no path)
+  //   2. Identify missing domains (concerns outside the 8 L1 domains)
+  //   3. Identify missing edge types (relationships with no type)
+  //   4. Identify paths that are too coarse (high ambiguity, low signal)
+  //
+  // solutionId is optional — a gap may be reported alongside an ingested
+  // solution (the best-approximation labeling) or standalone when the
+  // agent determines the code is too poorly classified to store as positive.
+
+  taxonomy_gaps: defineTable({
+    ulid: v.string(),
+
+    // Optional: ULID of a related solution that was ingested with approximate paths
+    solutionId: v.optional(v.string()),
+
+    // The original NL intent that prompted the code being labeled
+    intent: v.string(),
+
+    // JSON: TaxonomyPath[] — the best-approximation paths that WERE assigned.
+    // Empty array is valid when no existing path was a reasonable fit at all.
+    approximatePaths: v.string(),
+
+    // Free-text: what the taxonomy failed to express and why.
+    // This is the primary signal — written by the labeling agent in its own words.
+    // e.g. "The code implements a real-time collaborative cursor system. The closest
+    // path is state|client|context but that loses the real-time sync and presence
+    // dimensions entirely. Neither data|read|realtime nor state|optimistic|update
+    // captures the bidirectional cursor broadcast pattern."
+    description: v.string(),
+
+    // Structured classification of the gap type.
+    // missing_node      — the domain exists but no L2/L3 node fits
+    // missing_domain    — the concern falls outside all 8 L1 domains
+    // missing_edge_type — two co-occurring paths have a relationship no edge type captures
+    // path_too_coarse   — a path exists but is too broad to distinguish meaningfully different patterns
+    // path_ambiguous    — multiple paths apply equally; the taxonomy provides no way to choose
+    gapType: v.string(),
+
+    // Optional structured proposal — what WOULD have worked.
+    // For missing_node: a suggested path in L1|L2|L3 format
+    proposedPath: v.optional(v.string()),
+    // For missing_domain: a suggested new L1 domain name
+    proposedDomain: v.optional(v.string()),
+    // For missing_edge_type: a suggested new edge type name
+    proposedEdgeType: v.optional(v.string()),
+
+    // JSON: StackContext — stack may be relevant to whether the gap is stack-specific
+    stackContext: v.string(),
+
+    model: v.string(),
+    schemaVersion: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_ulid", ["ulid"])
+    .index("by_gap_type", ["gapType"])
+    .index("by_solution_id", ["solutionId"])
+    .index("by_schema_version", ["schemaVersion"])
+    .index("by_created", ["createdAt"])
+    // Compound: inference agent's primary query — all gaps of a given type for a schema version
+    .index("by_version_gap_type", ["schemaVersion", "gapType"])
+    .searchIndex("search_gaps", {
+      searchField: "description",
+      filterFields: ["gapType", "schemaVersion"],
+    }),
+
+  // ─── Negatives ─────────────────────────────────────────────────────────────
   negatives: defineTable({
     ulid: v.string(),
 

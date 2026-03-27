@@ -1,6 +1,8 @@
 {
   "name": "trellis",
   "version": "0.1.0",
+  "description": "A taxonomy-driven code planning system that accumulates structured training data as a byproduct of normal development work.",
+  "repository": "https://github.com/mnox/trellis",
   "private": true,
   "type": "module",
   "scripts": {

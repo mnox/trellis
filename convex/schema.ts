@@ -74,6 +74,9 @@ export default defineSchema({
     // Higher = this labeling was frequently wrong = lower confidence weight.
     correctionCount: v.optional(v.number()),
 
+    // JSON: string[] — file paths touched by this solution (e.g. ["src/api/auth.ts"])
+    filePaths: v.optional(v.string()),
+
     createdAt: v.number(),
   })
     .index("by_ulid", ["ulid"])
@@ -235,6 +238,9 @@ export default defineSchema({
     // Which model generated this (negative examples from stronger models are more surprising)
     model: v.string(),
 
+    // JSON: string[] — file paths touched
+    filePaths: v.optional(v.string()),
+
     schemaVersion: v.string(),
     createdAt: v.number(),
   })
@@ -244,4 +250,70 @@ export default defineSchema({
     .index("by_schema_version", ["schemaVersion"])
     .index("by_created", ["createdAt"])
     .index("by_version_failure", ["schemaVersion", "failureMode"]),
+
+  // ─── Nodes ──────────────────────────────────────────────────────────────────
+  // Generic graph nodes. Risks, patterns, facets, and any future node type
+  // all live here. The type field is an open string — no enums.
+  // New node types require zero schema changes; add them at ingest time.
+  //
+  // Examples:
+  //   { slug: "prompt-injection", type: "risk",    label: "Prompt Injection" }
+  //   { slug: "ddd",              type: "pattern",  label: "Domain Driven Design" }
+  //   { slug: "security",         type: "facet",    label: "Security" }
+
+  nodes: defineTable({
+    ulid:        v.string(),
+    slug:        v.string(),              // kebab-case stable identifier
+    type:        v.string(),              // open string: "risk" | "pattern" | "facet" | anything
+    label:       v.string(),              // human-readable display name
+    description: v.optional(v.string()),
+    createdAt:   v.number(),
+  })
+    .index("by_ulid", ["ulid"])
+    .index("by_slug", ["slug"])           // primary dedup key for get-or-create
+    .index("by_type", ["type"]),
+
+  // ─── Node Edges ─────────────────────────────────────────────────────────────
+  // Typed relationships between nodes.
+  // e.g. "prompt-injection" --has_facet--> "security"
+  //      "n-plus-one-queries" --has_facet--> "performance"
+  // Edge types are open strings — no enums. Upserted idempotently.
+
+  node_edges: defineTable({
+    ulid:      v.string(),
+    fromSlug:  v.string(),
+    toSlug:    v.string(),
+    edgeType:  v.string(),               // open string: "has_facet" | "implies_risk" | "related_to"
+    createdAt: v.number(),
+  })
+    .index("by_ulid",      ["ulid"])
+    .index("by_from_slug", ["fromSlug"])
+    .index("by_to_slug",   ["toSlug"])
+    .index("by_from_type", ["fromSlug", "edgeType"]),
+
+  // ─── Record Nodes ────────────────────────────────────────────────────────────
+  // Links between ingestion records (solutions, negatives) and nodes.
+  // Carries the relationship type and an optional confidence score.
+  //
+  // Edge types:
+  //   introduces_risk      — the code directly introduces this risk
+  //   carries_risk         — the code is adjacent to this risk (may handle it)
+  //   demonstrates_pattern — the code demonstrates this architectural pattern
+  //
+  // Duplicate links are allowed — multiple ingest events asserting the same
+  // relationship are distinct signal (frequency is information).
+
+  record_nodes: defineTable({
+    recordUlid: v.string(),              // ULID of the solution or negative
+    recordType: v.string(),              // "solution" | "negative"
+    nodeSlug:   v.string(),
+    edgeType:   v.string(),              // see edge types above — open string
+    confidence: v.optional(v.number()),
+    createdAt:  v.number(),
+  })
+    .index("by_record",      ["recordUlid"])
+    .index("by_node_slug",   ["nodeSlug"])
+    .index("by_record_edge", ["recordUlid", "edgeType"])
+    .index("by_node_edge",   ["nodeSlug", "edgeType"])
+    .index("by_record_type", ["recordType", "nodeSlug"]),
 });

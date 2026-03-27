@@ -12,6 +12,7 @@ export const insert = internalMutation({
     failureDetail: v.optional(v.string()),
     stackContext: v.string(),       // JSON: StackContext
     model: v.string(),
+    filePaths: v.optional(v.string()),  // JSON: string[]
     schemaVersion: v.string(),
   },
   returns: v.object({ ulid: v.string(), id: v.id("negatives") }),
@@ -27,6 +28,7 @@ export const insert = internalMutation({
       failureDetail: args.failureDetail,
       stackContext: args.stackContext,
       model: args.model,
+      filePaths: args.filePaths,
       schemaVersion: args.schemaVersion,
       createdAt: Date.now(),
     });

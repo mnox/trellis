@@ -1,5 +1,5 @@
 /**
- * Trellis Taxonomy — v1.0.0 (LORE: Labeled Observation and Retrieval Engine)
+ * Trellis Taxonomy — v1.1.0 (LORE: Labeled Observation and Retrieval Engine)
  *
  * Generic, stack-agnostic taxonomy for architectural intent classification.
  * Paths are three levels deep: L1|L2|L3
@@ -13,7 +13,7 @@
  * across all stacks while preserving stack-filtered retrieval at inference time.
  */
 
-export const SCHEMA_VERSION = "1.0.0";
+export const SCHEMA_VERSION = "1.1.0";
 
 // ─── Core Types ───────────────────────────────────────────────────────────────
 

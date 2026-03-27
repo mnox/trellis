@@ -13,6 +13,7 @@ export const insert = internalMutation({
     stackContext: v.string(),       // JSON: StackContext
     model: v.string(),
     confidence: v.optional(v.number()),
+    filePaths: v.optional(v.string()),  // JSON: string[]
     schemaVersion: v.string(),
   },
   returns: v.object({ ulid: v.string(), id: v.id("solutions") }),
@@ -27,6 +28,7 @@ export const insert = internalMutation({
       stackContext: args.stackContext,
       model: args.model,
       confidence: args.confidence,
+      filePaths: args.filePaths,
       schemaVersion: args.schemaVersion,
       createdAt: Date.now(),
     });
@@ -48,6 +50,7 @@ export const getByUlid = internalQuery({
       stackContext: v.string(),
       model: v.string(),
       confidence: v.optional(v.number()),
+      filePaths: v.optional(v.string()),
       schemaVersion: v.string(),
       durabilityScore: v.optional(v.number()),
       compilationPassed: v.optional(v.boolean()),
@@ -71,6 +74,7 @@ export const getByUlid = internalQuery({
       stackContext: doc.stackContext,
       model: doc.model,
       confidence: doc.confidence,
+      filePaths: doc.filePaths,
       schemaVersion: doc.schemaVersion,
       durabilityScore: doc.durabilityScore,
       compilationPassed: doc.compilationPassed,

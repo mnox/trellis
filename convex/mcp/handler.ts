@@ -155,7 +155,8 @@ export const handleMcpRequest = httpAction(async (ctx, request) => {
       const args = (params.arguments ?? {}) as Record<string, unknown>;
 
       try {
-        const resultText: string = await ctx.runAction(TOOL_ACTIONS[toolName], args);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const resultText: string = await ctx.runAction(TOOL_ACTIONS[toolName], args as any);
         return jsonRpcResponse(id, {
           content: [{ type: "text", text: resultText }],
         });

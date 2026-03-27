@@ -18,6 +18,70 @@ type ToolDefinition = {
 
 // ─── Shared sub-schemas ───────────────────────────────────────────────────────
 
+const nodeRefSchema: JSONSchemaType = {
+  type: "object",
+  properties: {
+    slug: {
+      type: "string",
+      description:
+        "Stable kebab-case identifier, e.g. 'prompt-injection', 'ddd', 'security'. " +
+        "Used for deduplication — use consistent slugs across sessions.",
+    },
+    type: {
+      type: "string",
+      description:
+        "Open string node type. Common values: 'risk', 'pattern', 'facet'. " +
+        "Any string is valid — new types require no schema changes.",
+    },
+    label: {
+      type: "string",
+      description: "Human-readable display name, e.g. 'Prompt Injection', 'Domain Driven Design'",
+    },
+    description: {
+      type: "string",
+      description: "Optional detail about this node",
+    },
+    edge_type: {
+      type: "string",
+      description:
+        "How this record relates to the node. " +
+        "introduces_risk: the code directly introduces this risk. " +
+        "carries_risk: the code is adjacent to this risk (may handle it correctly). " +
+        "demonstrates_pattern: the code demonstrates this architectural pattern.",
+    },
+    confidence: {
+      type: "number",
+      minimum: 0,
+      maximum: 1,
+      description: "Confidence that this node applies to this record (0.0–1.0)",
+    },
+  },
+  required: ["slug", "type", "label", "edge_type"],
+  additionalProperties: false,
+};
+
+const nodeEdgeSchema: JSONSchemaType = {
+  type: "object",
+  properties: {
+    from_slug: {
+      type: "string",
+      description: "Slug of the source node, e.g. 'prompt-injection'",
+    },
+    to_slug: {
+      type: "string",
+      description: "Slug of the target node, e.g. 'security'",
+    },
+    edge_type: {
+      type: "string",
+      description:
+        "Relationship between the two nodes, e.g. 'has_facet', 'implies_risk', 'related_to'. " +
+        "Open string — any value is valid.",
+    },
+  },
+  required: ["from_slug", "to_slug", "edge_type"],
+  additionalProperties: false,
+};
+
 const taxonomyPathSchema: JSONSchemaType = {
   type: "string",
   pattern: "^[a-z0-9-]+\\|[a-z0-9-]+\\|[a-z0-9-]+$",
@@ -166,6 +230,28 @@ Current schema version: ${SCHEMA_VERSION}`,
           description:
             "Your confidence in the taxonomy labeling (0.0–1.0). " +
             "Affects training weight — honest low confidence is more valuable than inflated confidence.",
+        },
+        file_paths: {
+          type: "array",
+          items: { type: "string" },
+          description:
+            "File paths touched by this solution, e.g. ['src/api/auth.ts', 'lib/session.ts']. " +
+            "Include when you know which files the solution relates to.",
+        },
+        nodes: {
+          type: "array",
+          items: nodeRefSchema,
+          description:
+            "Risks, patterns, and facets this solution introduces or demonstrates. " +
+            "Nodes are created on first use (get-or-create by slug). " +
+            "Use consistent kebab-case slugs across sessions.",
+        },
+        node_edges: {
+          type: "array",
+          items: nodeEdgeSchema,
+          description:
+            "Topology edges between nodes, e.g. 'prompt-injection has_facet security'. " +
+            "Upserted idempotently — safe to re-declare the same edge.",
         },
       },
       required: ["code", "intent", "taxonomy_paths", "resolved_edges", "stack_context", "model"],
@@ -317,6 +403,23 @@ approach" space for a given intent.`,
         model: {
           type: "string",
           description: "The model ID that generated this code",
+        },
+        file_paths: {
+          type: "array",
+          items: { type: "string" },
+          description: "File paths touched by this negative example",
+        },
+        nodes: {
+          type: "array",
+          items: nodeRefSchema,
+          description:
+            "Risks, patterns, and facets this negative introduces or demonstrates. " +
+            "e.g. a security_flaw negative should link the relevant risk node.",
+        },
+        node_edges: {
+          type: "array",
+          items: nodeEdgeSchema,
+          description: "Topology edges between nodes declared alongside this negative.",
         },
       },
       required: ["code", "intent", "taxonomy_paths", "failure_mode", "stack_context", "model"],

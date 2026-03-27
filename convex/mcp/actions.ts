@@ -18,17 +18,38 @@ const edgeValidator = v.object({
   context: v.optional(v.string()),
 });
 
+// A node reference declared inline at ingest time.
+// Nodes are get-or-created by slug — no pre-registration required.
+const nodeRefValidator = v.object({
+  slug:        v.string(),               // stable kebab-case id, e.g. "prompt-injection"
+  type:        v.string(),               // open string: "risk" | "pattern" | "facet" | anything
+  label:       v.string(),               // display name, e.g. "Prompt Injection"
+  description: v.optional(v.string()),
+  edge_type:   v.string(),               // how this record relates to the node
+  confidence:  v.optional(v.number()),
+});
+
+// A topology edge between two nodes declared at ingest time.
+const nodeEdgeInputValidator = v.object({
+  from_slug: v.string(),
+  to_slug:   v.string(),
+  edge_type: v.string(),
+});
+
 // ─── ingest_solution ──────────────────────────────────────────────────────────
 
 export const ingestSolution = internalAction({
   args: {
-    code: v.string(),
-    intent: v.string(),
+    code:           v.string(),
+    intent:         v.string(),
     taxonomy_paths: v.array(v.string()),
     resolved_edges: v.array(edgeValidator),
-    stack_context: stackContextValidator,
-    model: v.string(),
-    confidence: v.optional(v.number()),
+    stack_context:  stackContextValidator,
+    model:          v.string(),
+    confidence:     v.optional(v.number()),
+    file_paths:     v.optional(v.array(v.string())),
+    nodes:          v.optional(v.array(nodeRefValidator)),
+    node_edges:     v.optional(v.array(nodeEdgeInputValidator)),
   },
   returns: v.string(),
   handler: async (ctx, args): Promise<string> => {
@@ -43,15 +64,42 @@ export const ingestSolution = internalAction({
     }
 
     const { ulid } = await ctx.runMutation(internal.solutions.insert, {
-      code: args.code,
-      intent: args.intent,
+      code:          args.code,
+      intent:        args.intent,
       taxonomyPaths: JSON.stringify(args.taxonomy_paths),
       resolvedEdges: JSON.stringify(args.resolved_edges),
-      stackContext: JSON.stringify(args.stack_context),
-      model: args.model,
-      confidence: args.confidence,
+      stackContext:  JSON.stringify(args.stack_context),
+      model:         args.model,
+      confidence:    args.confidence,
+      filePaths:     args.file_paths ? JSON.stringify(args.file_paths) : undefined,
       schemaVersion: SCHEMA_VERSION,
     });
+
+    // Link nodes (get-or-create each, then record the relationship)
+    for (const node of args.nodes ?? []) {
+      await ctx.runMutation(internal.nodes.getOrCreate, {
+        slug:        node.slug,
+        type:        node.type,
+        label:       node.label,
+        description: node.description,
+      });
+      await ctx.runMutation(internal.record_nodes.link, {
+        recordUlid: ulid,
+        recordType: "solution",
+        nodeSlug:   node.slug,
+        edgeType:   node.edge_type,
+        confidence: node.confidence,
+      });
+    }
+
+    // Upsert node-to-node topology edges
+    for (const edge of args.node_edges ?? []) {
+      await ctx.runMutation(internal.node_edges.upsert, {
+        fromSlug: edge.from_slug,
+        toSlug:   edge.to_slug,
+        edgeType: edge.edge_type,
+      });
+    }
 
     const pathList = args.taxonomy_paths.join(", ");
     const edgeCount = args.resolved_edges.length;
@@ -59,16 +107,23 @@ export const ingestSolution = internalAction({
       ? ` | confidence: ${(args.confidence * 100).toFixed(0)}%`
       : "";
 
+    const nodeCount = args.nodes?.length ?? 0;
+    const nodeSummary = nodeCount > 0
+      ? `\nNodes (${nodeCount}): ${args.nodes!.map((n) => `${n.slug}[${n.type}]`).join(", ")}`
+      : "";
+    const fileCount = args.file_paths?.length ?? 0;
+    const fileSummary = fileCount > 0 ? ` | Files: ${fileCount}` : "";
+
     const lines = [
       `Ingested solution ${ulid}`,
       `Paths (${args.taxonomy_paths.length}): ${pathList}`,
-      `Edges: ${edgeCount}${confidenceStr}`,
+      `Edges: ${edgeCount}${confidenceStr}${fileSummary}`,
       `Stack: ${args.stack_context.framework} [${args.stack_context.libraries.join(", ")}]`,
       `Model: ${args.model} | Schema: v${SCHEMA_VERSION}`,
       ...warnings,
     ];
 
-    return lines.join("\n");
+    return lines.join("\n") + nodeSummary;
   },
 });
 
@@ -173,28 +228,63 @@ export const reportTaxonomyGap = internalAction({
 
 export const ingestNegative = internalAction({
   args: {
-    code: v.string(),
-    intent: v.string(),
+    code:           v.string(),
+    intent:         v.string(),
     taxonomy_paths: v.array(v.string()),
     resolved_edges: v.optional(v.array(edgeValidator)),
-    failure_mode: v.string(),
+    failure_mode:   v.string(),
     failure_detail: v.optional(v.string()),
-    stack_context: stackContextValidator,
-    model: v.string(),
+    stack_context:  stackContextValidator,
+    model:          v.string(),
+    file_paths:     v.optional(v.array(v.string())),
+    nodes:          v.optional(v.array(nodeRefValidator)),
+    node_edges:     v.optional(v.array(nodeEdgeInputValidator)),
   },
   returns: v.string(),
   handler: async (ctx, args): Promise<string> => {
     const { ulid } = await ctx.runMutation(internal.negatives.insert, {
-      code: args.code,
-      intent: args.intent,
+      code:          args.code,
+      intent:        args.intent,
       taxonomyPaths: JSON.stringify(args.taxonomy_paths),
       resolvedEdges: args.resolved_edges ? JSON.stringify(args.resolved_edges) : undefined,
-      failureMode: args.failure_mode,
+      failureMode:   args.failure_mode,
       failureDetail: args.failure_detail,
-      stackContext: JSON.stringify(args.stack_context),
-      model: args.model,
+      stackContext:  JSON.stringify(args.stack_context),
+      model:         args.model,
+      filePaths:     args.file_paths ? JSON.stringify(args.file_paths) : undefined,
       schemaVersion: SCHEMA_VERSION,
     });
+
+    // Link nodes
+    for (const node of args.nodes ?? []) {
+      await ctx.runMutation(internal.nodes.getOrCreate, {
+        slug:        node.slug,
+        type:        node.type,
+        label:       node.label,
+        description: node.description,
+      });
+      await ctx.runMutation(internal.record_nodes.link, {
+        recordUlid: ulid,
+        recordType: "negative",
+        nodeSlug:   node.slug,
+        edgeType:   node.edge_type,
+        confidence: node.confidence,
+      });
+    }
+
+    // Upsert node-to-node topology edges
+    for (const edge of args.node_edges ?? []) {
+      await ctx.runMutation(internal.node_edges.upsert, {
+        fromSlug: edge.from_slug,
+        toSlug:   edge.to_slug,
+        edgeType: edge.edge_type,
+      });
+    }
+
+    const nodeCount = args.nodes?.length ?? 0;
+    const nodeSummary = nodeCount > 0
+      ? `\nNodes (${nodeCount}): ${args.nodes!.map((n) => `${n.slug}[${n.type}]`).join(", ")}`
+      : "";
 
     return [
       `Negative example recorded: ${ulid}`,
@@ -205,6 +295,6 @@ export const ingestNegative = internalAction({
       args.failure_detail ? `Detail: ${args.failure_detail.slice(0, 200)}` : "",
     ]
       .filter(Boolean)
-      .join("\n");
+      .join("\n") + nodeSummary;
   },
 });

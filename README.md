@@ -59,7 +59,7 @@ The MVP is the data tap. LORE is running. The tap is on.
 - 3-level path format: `L1|L2|L3`
 - 14 typed edge types encoding relationships between co-occurring patterns
 - LLM-legible descriptions and examples per node — prompting context for the labeling agent, not machine logic
-- Schema version `1.0.0` — add new nodes without retraining
+- Schema version `1.1.0` — add new nodes without retraining
 
 **MCP server** (Convex HTTP + JSON-RPC 2.0)
 
@@ -73,10 +73,15 @@ Three tools the agent calls during development:
 
 **Convex storage** (`convex/schema.ts`)
 
-Three tables, one per reward signal — intentionally never merged:
-- `solutions` — labeled code with stack context, model, and confidence
+Three ingestion tables, one per reward signal — intentionally never merged:
+- `solutions` — labeled code with stack context, model, confidence, and file paths
 - `corrections` — human overrides linked to the original solution
-- `negatives` — failed solutions with failure mode classification
+- `negatives` — failed solutions with failure mode classification and file paths
+
+Three graph tables — generic, fully dynamic:
+- `nodes` — risks, patterns, facets, and any future node type. Keyed by slug, typed by an open string.
+- `node_edges` — typed topology between nodes (e.g. `prompt-injection --has_facet--> security`)
+- `record_nodes` — links solutions/negatives to nodes with edge type and confidence
 
 ### Taxonomy domains
 
@@ -253,11 +258,14 @@ trellis/
 │   ├── index.ts            ← LORE taxonomy: 60 nodes, 14 edge types, helpers
 │   └── generate-json.ts    ← Exports taxonomy/nodes.json
 └── convex/
-    ├── schema.ts            ← solutions, corrections, negatives tables
+    ├── schema.ts            ← solutions, corrections, negatives, nodes, node_edges, record_nodes
     ├── http.ts              ← HTTP router: /mcp
     ├── solutions.ts         ← Internal mutations
     ├── corrections.ts       ← Internal mutations
     ├── negatives.ts         ← Internal mutations
+    ├── nodes.ts             ← Generic node graph (getOrCreate, listByType)
+    ├── node_edges.ts        ← Node topology edges (upsert)
+    ├── record_nodes.ts      ← Record-to-node links (link, listForRecord)
     └── mcp/
         ├── tools.ts         ← Tool definitions (JSON schema)
         ├── instructions.ts  ← LLM system prompt
@@ -327,13 +335,12 @@ data|write|optimistic   →[optimistic_binding]→   state|optimistic|update
 ### Immediate (Phase 1 hardening)
 - [ ] Deploy: `npx convex dev` → wire MCP endpoint to Claude Code
 - [ ] First real ingestion session — validate taxonomy coverage against actual usage patterns
-- [ ] Taxonomy gap review — audit novel paths emitted by the agent for v1.1 additions
+- [x] Schema v1.1 — graph layer for risk profiling, pattern tracking, and facets
 - [ ] Query/export interface — inspect accumulated data by path, stack, model, and confidence
 - [ ] Deduplication — detect near-duplicate solutions ingested for the same intent
 
 ### Near-term (Phase 2)
 - [ ] Durability scoring function — populate `durabilityScore` based on correction rate, recency, and compilation signal
-- [ ] Schema v1.1 — first taxonomy revision based on observed usage gaps
 - [ ] Dashboard — basic visibility into corpus health: coverage by domain, correction rate by path, model distribution
 
 ### Medium-term (Phase 3)

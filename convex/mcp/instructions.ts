@@ -36,6 +36,32 @@ Edges encode the architectural "glue" between co-occurring patterns. Only record
 represent a real structural dependency — a form wired to a mutation (submit_handler), a component
 driven by a live query (data_binding), optimistic state tied to a pending write (optimistic_binding).
 
+## Graph layer — nodes, facets, patterns, risks
+
+When a solution introduces, carries, or demonstrates a risk, pattern, or facet, include it
+in the nodes array. Nodes are created on first use — no pre-registration needed.
+
+**Node types** (open string — use any value, these are just conventions):
+  risk     — a risk or vulnerability: "prompt-injection", "n-plus-one-queries", "sql-injection", "xss"
+  pattern  — an architectural pattern: "repository-pattern", "cqrs", "ddd", "event-sourcing"
+  facet    — a cross-cutting quality concern: "security", "performance", "scalability", "observability"
+
+**Edge types from record to node:**
+  introduces_risk      — the code directly introduces this risk (use on negatives and flagged solutions)
+  carries_risk         — the code is adjacent to this risk but may handle it correctly
+  demonstrates_pattern — the code demonstrates this architectural pattern
+
+**Slugs are the stable identity.** Use consistent kebab-case slugs across sessions:
+  "prompt-injection" not "prompt injection" or "PromptInjection"
+  "n-plus-one-queries" not "n+1" — pick one form and use it every time
+
+**Node edges** encode topology between nodes (e.g. "prompt-injection has_facet security").
+Declare these in node_edges when linking a node to a facet for the first time.
+They are upserted idempotently — re-declaring the same edge is always safe.
+
+**File paths** — include file_paths when you know which files a solution touches.
+e.g. ["convex/users.ts", "convex/auth.ts"]. Omit if unknown.
+
 ## Schema version
 
 Current taxonomy schema version: ${SCHEMA_VERSION}

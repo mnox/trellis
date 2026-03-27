@@ -26,11 +26,25 @@ The bet is simple: **whoever has the best-structured data when specialized model
 
 ## What this is
 
-Every time an LLM generates code, Trellis simultaneously labels that code with structured taxonomy paths describing the architectural patterns it demonstrates — things like `data|read|paginated`, `ui|form|submission`, `auth|guard|query`. These labels, along with the original intent, the stack context, and any typed edges between co-occurring patterns, are stored as training records.
+Every time an LLM generates code, Trellis simultaneously labels that code with structured taxonomy paths describing the architectural patterns it demonstrates — things like `data|read|paginated`, `ui|form|submission`, `auth|guard|query`. These labels, along with the original intent, the stack context, and typed edges between co-occurring patterns, are stored as training records via LORE. Human corrections and failed solutions are captured in separate tables, each feeding a distinct reward signal. The whole thing runs passively — no explicit training workflow, no interruption to normal development.
 
-Over time this builds a dense, high-quality dataset organized by architectural intent. When the retrieval layer (Phase 3) is live, those records become the foundation for generation: instead of producing code from scratch, the model generates from a corpus of validated, stack-specific patterns that it accumulated by doing your work.
+Over time this builds a dense, structured dataset organized by architectural intent rather than by syntax or library surface area. That distinction matters. Taxonomy-keyed data describes *what* code is doing architecturally — the pattern — not *how* a specific framework exposes it. That level of abstraction is what makes the data reusable across model architectures, training approaches, and stack generations.
 
-The core taxonomy is stack-agnostic. `data|read|realtime` is the same architectural concept whether you implement it with Convex, Supabase, or Apollo. The stack lives as metadata on each record — not in the taxonomy path. Same signal, every stack.
+The core taxonomy is stack-agnostic by design. `data|read|realtime` is the same architectural concept whether the implementation uses Convex, Supabase, or Apollo. The stack lives as metadata on each record — not in the taxonomy path — so the same signal accumulates regardless of which technologies are in play, and retrieval can be stack-filtered without the underlying data being stack-fragmented.
+
+### How this data plugs into future training layers
+
+The records LORE accumulates are structured to be useful across multiple training and inference paradigms — not just the retrieval layer Trellis is building toward:
+
+**Supervised fine-tuning (SFT).** Every `solutions` record is a labeled `(intent, code, taxonomy_paths)` triple. Filtered by stack, confidence, and durability score, these become high-quality SFT examples for a code generation model. The taxonomy paths become the structured output target; the intent becomes the input. The `corrections` table provides a clean source of preference pairs — original labeling vs. human-corrected labeling — directly usable for alignment.
+
+**Reinforcement learning from human feedback (RLHF / RLAIF).** The three reward signals map naturally onto reward model training. Correction rate measures how often a labeling was wrong (negative reward signal). Compilation pass rate measures whether the code actually works (outcome reward). Human rejections in the `negatives` table are explicit negative examples. The separation of these signals into distinct tables means they can be weighted independently rather than collapsing into a single noisy score.
+
+**Retrieval-augmented generation (RAG).** The most immediate use: at inference time, retrieve the highest-durability examples matching the inferred taxonomy path set and inject them as few-shot context. This works with any base model — no fine-tuning required. The taxonomy key is the retrieval index; the stack filter narrows to relevant examples. This is Phase 3 of the Trellis roadmap, and the data structure is already built for it.
+
+**Taxonomy-conditioned generation.** As specialized models mature, the taxonomy paths can become explicit conditioning signals — the model is trained to take `(intent, taxonomy_paths[])` as structured input and produce code that satisfies those constraints. LORE data is already structured this way. The transition from "RAG with taxonomy keys" to "model conditioned on taxonomy" becomes a fine-tuning step, not a data restructuring effort.
+
+**Distillation targets.** The `model` field on every record tracks which model produced the code. Opus-generated solutions weighted highest, Haiku lowest. This makes the dataset usable as distillation training data — teaching a smaller specialized model to produce the quality of output that a larger model would, for the patterns that matter in your stack.
 
 ---
 

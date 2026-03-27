@@ -6,6 +6,18 @@ Trellis guides growth — the taxonomy is the structure, and labeled training da
 
 ---
 
+## TLDR
+
+The frontier model API is a transitional state. The industry is moving toward specialized, fine-tuned models — smaller, cheaper, stack-specific, and ownable. The bottleneck for getting there isn't model capability. It's **training data**: high-quality, structured, labeled examples that capture what good code looks like in your specific context.
+
+Trellis is how you start accumulating that data today, before the fine-tuning toolchain is mature enough to use it.
+
+Every time Claude generates code, Trellis passively labels it with structured taxonomy paths describing the architectural patterns it demonstrates. Those labels — along with the intent, stack context, and human corrections — are stored as training records. No extra workflow. No interruption.
+
+When specialized models, fine-tuning tooling, and open corpus infrastructure mature to the point where a domain-specific code model is practical to build and run, **the data is already there**: dense, validated, and organized by architectural intent rather than by syntax or library surface area. That structure is what makes it reusable across model architectures, training approaches, and stack generations — and what makes it worth accumulating before you need it.
+
+---
+
 ## The thesis
 
 The frontier model API paradigm is not the endgame. Routing every code generation request through a massive general-purpose model — paying per token, accepting the latency, and hoping the model generalizes well to your specific stack — is a transitional state, not a destination.

@@ -1,5 +1,5 @@
 /**
- * CRAPS Taxonomy — v1.0.0
+ * Trellis Taxonomy — v1.0.0 (LORE: Labeled Observation and Retrieval Engine)
  *
  * Generic, stack-agnostic taxonomy for architectural intent classification.
  * Paths are three levels deep: L1|L2|L3

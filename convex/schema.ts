@@ -2,7 +2,7 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 /**
- * CRAPS Convex Schema
+ * Trellis — LORE Convex Schema
  *
  * Three ingestion tables, one per reward signal:
  *   solutions   → code samples + taxonomy labels (taxonomy coverage signal)

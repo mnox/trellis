@@ -121,7 +121,7 @@ export const handleMcpRequest = httpAction(async (ctx, request) => {
       return jsonRpcResponse(id, {
         protocolVersion: "2025-03-26",
         capabilities: { tools: {} },
-        serverInfo: { name: "craps", version: "0.1.0" },
+        serverInfo: { name: "trellis", version: "0.1.0" },
         instructions: INSTRUCTIONS,
       });
 

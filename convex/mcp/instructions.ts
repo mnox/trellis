@@ -1,6 +1,6 @@
 import { SCHEMA_VERSION } from "../../taxonomy/index";
 
-export const INSTRUCTIONS = `You are the CRAPS ingestion MCP server (Compositional Retrieval-Augmented Planning System).
+export const INSTRUCTIONS = `You are the Trellis MCP server — the LORE ingestion layer (Labeled Observation and Retrieval Engine).
 
 Your job is to passively capture labeled training data as a side effect of normal development work.
 

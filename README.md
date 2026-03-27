@@ -6,6 +6,24 @@ Trellis guides growth — the taxonomy is the structure, and labeled training da
 
 ---
 
+## The thesis
+
+The frontier model API paradigm is not the endgame. Routing every code generation request through a massive general-purpose model — paying per token, accepting the latency, and hoping the model generalizes well to your specific stack — is a transitional state, not a destination.
+
+The direction the industry is heading is toward **specialized micro models and hybrid architectures**: smaller, faster, cheaper models that are deeply tuned to a specific domain, stack, or task. Open source models that a team can own, fine-tune, and run on their own infrastructure. Hybrid systems where a small specialized model handles the common 80% of cases and routes the hard 20% to a larger model only when needed.
+
+This is already happening. The evidence is in every "small model beats big model on narrow task" benchmark that drops every few months. The bottleneck isn't capability — it's training data. Specifically: **high-quality, structured, task-specific training data that captures what good looks like in your exact context**.
+
+Trellis is a stepping stone in that direction.
+
+The goal isn't to replace frontier models today. The goal is to start accumulating the signal now — structured, labeled, stack-aware — so that when the fine-tuning tooling, the open source base models, and the hybrid routing infrastructure mature to the point where a specialized code planning model is practical to build and run, the training data is already there. Dense, validated, and organized by architectural intent.
+
+The taxonomy and three-signal data model are deliberately generic and agnostic. Not because the system lacks opinions, but because the research is still moving fast. Emergent findings about what makes fine-tuned code models work well, what reward signals matter most, and what architectural abstractions generalize across stacks — these will shape what the training data needs to look like. The data model is designed to pivot with those findings without starting over: add taxonomy nodes, re-label with a new schema version, weight signals differently. The tap stays on through the iteration.
+
+The bet is simple: **whoever has the best-structured data when specialized models become practical wins**. Trellis is how you start accumulating it today.
+
+---
+
 ## What this is
 
 Every time an LLM generates code, Trellis simultaneously labels that code with structured taxonomy paths describing the architectural patterns it demonstrates — things like `data|read|paginated`, `ui|form|submission`, `auth|guard|query`. These labels, along with the original intent, the stack context, and any typed edges between co-occurring patterns, are stored as training records.

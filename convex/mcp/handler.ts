@@ -2,6 +2,7 @@ import { httpAction } from "../_generated/server";
 import { internal } from "../_generated/api";
 import { TOOL_DEFINITIONS } from "./tools";
 import { INSTRUCTIONS } from "./instructions";
+import { extractAuth } from "./auth";
 
 export function corsHeaders(): Record<string, string> {
   return {
@@ -82,6 +83,15 @@ function isNotification(body: JsonRpcRequest): boolean {
 }
 
 export const handleMcpRequest = httpAction(async (ctx, request) => {
+  try {
+    await extractAuth(ctx, request);
+  } catch (err) {
+    return new Response(
+      JSON.stringify({ error: "unauthorized", message: String(err) }),
+      { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders() } },
+    );
+  }
+
   if (request.method === "GET") {
     return new Response(
       JSON.stringify({ error: "Method not allowed. Use POST." }),

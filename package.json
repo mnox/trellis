@@ -11,12 +11,16 @@
   },
   "dependencies": {
     "convex": "^1.21.0",
+    "jose": "^6.2.2",
     "ulid": "^2.3.0"
   },
   "devDependencies": {
+    "@types/node": "^25.5.0",
     "typescript": "^5.0.0"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["esbuild"]
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
   }
 }
